@@ -58,13 +58,24 @@ def get_transcript(video_url):
         # New API for youtube-transcript-api v1.2.x
         ytt_api = YouTubeTranscriptApi()
         
+        # Check for cookies.txt to bypass bot detection (Render/Cloud)
+        cookies_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cookies.txt")
+        if os.path.exists(cookies_file):
+            # print(f"Using cookies from: {cookies_file}")
+            pass
+        else:
+            cookies_file = None
+            
         # Try fetching transcript in different languages
         languages_to_try = ['hi', 'en', 'en-IN', 'hi-IN']
         transcript = None
         
         for lang in languages_to_try:
             try:
-                transcript = ytt_api.fetch(video_id, languages=[lang])
+                if cookies_file:
+                    transcript = ytt_api.fetch(video_id, languages=[lang], cookies=cookies_file)
+                else:
+                    transcript = ytt_api.fetch(video_id, languages=[lang])
                 break
             except:
                 continue
@@ -72,16 +83,22 @@ def get_transcript(video_url):
         # If specific languages failed, try to get any available transcript
         if transcript is None:
             try:
-                transcript_list = ytt_api.list(video_id)
+                transcript_list = ytt_api.list(video_id, cookies=cookies_file)
                 if transcript_list:
                     # Get the first available transcript
                     first_transcript = transcript_list[0]
-                    transcript = ytt_api.fetch(video_id, languages=[first_transcript.language_code])
+                    if cookies_file:
+                       transcript = ytt_api.fetch(video_id, languages=[first_transcript.language_code], cookies=cookies_file)
+                    else:
+                       transcript = ytt_api.fetch(video_id, languages=[first_transcript.language_code])
             except Exception as e:
                 print(f"List transcripts error: {e}")
         
         if transcript is None:
-            st.error("No transcripts available for this video.")
+            if not cookies_file:
+                 st.error("❌ Transcript block detected by YouTube. Please upload 'cookies.txt' to fix this.")
+            else:
+                 st.error("No transcripts available for this video.")
             return None
         
         # Extract text from snippets
