@@ -1,0 +1,11 @@
+for making my project venv
+python -m venv venv
+
+to activate my project
+venv\Scripts\activate
+
+to install dependencies
+pip install -r requirements.txt
+
+to run the app
+streamlit run app.py
