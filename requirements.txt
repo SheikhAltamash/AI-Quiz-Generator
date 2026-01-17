@@ -1,5 +1,8 @@
 streamlit
 youtube-transcript-api
-google-generativeai
+google-genai
 python-dotenv
 fpdf2
+beautifulsoup4
+requests
+Pillow

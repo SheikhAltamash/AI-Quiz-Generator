@@ -1,0 +1,101 @@
+/* Mobile-first responsive styles for Teaching Pariksha */
+
+/* Dark theme enhancements */
+body {
+  background-color: #0e1117;
+}
+
+/* Stack columns vertically on mobile */
+@media (max-width: 768px) {
+  /* Make columns stack vertically */
+  [data-testid="column"] {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    min-width: 100% !important;
+  }
+
+  /* Reduce padding */
+  .main .block-container {
+    padding: 1rem !important;
+    padding-top: 2rem !important;
+  }
+
+  /* Smaller title */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+
+  /* Smaller buttons */
+  .stButton > button {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Full-width inputs */
+  .stTextInput,
+  .stTextArea,
+  .stSelectbox,
+  .stNumberInput {
+    width: 100% !important;
+  }
+
+  /* Adjust radio buttons */
+  .stRadio > div {
+    flex-direction: column !important;
+  }
+
+  /* SHOW sidebar on mobile with navigation */
+  [data-testid="stSidebar"] {
+    min-width: 200px !important;
+    width: 200px !important;
+  }
+}
+
+/* Better touch targets */
+.stButton > button {
+  min-height: 44px;
+}
+
+/* Improve readability */
+.stMarkdown {
+  line-height: 1.6;
+}
+
+/* Hide "Press Enter to apply" hints */
+.stTextInput small,
+.stNumberInput small,
+div[data-testid="InputInstructions"] {
+  display: none !important;
+}
+
+/* Page transition loader */
+.stSpinner {
+  color: #4f8bf9 !important;
+}
+
+/* Logo styling */
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.logo-container img {
+  width: 50px;
+  height: 50px;
+}
+
+/* Red remove button for topics */
+.topic-remove-btn button {
+  background-color: transparent !important;
+  color: #ff4b4b !important;
+  border: none !important;
+  padding: 0 !important;
+  min-height: 24px !important;
+  font-size: 16px !important;
+}
+
+.topic-remove-btn button:hover {
+  color: #ff0000 !important;
+}
