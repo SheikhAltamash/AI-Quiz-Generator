@@ -90,89 +90,174 @@ def get_transcript(url):
 from fpdf import FPDF
 import os
 
+from fpdf.enums import XPos, YPos
+
 # --- PDF GENERATION CLASS ---
-# Using fpdf2 with a Unicode font for Hindi support
-FONT_PATH = os.path.join(os.path.dirname(__file__), "NotoSansDevanagari-Regular.ttf")
+# Using fpdf2 with Landscape mode
+# Attempt to use Windows system fonts for full Unicode support
+SYSTEM_FONTS = [
+    ("Nirmala", "C:/Windows/Fonts/Nirmala.ttf"),       # Best for Indic + English
+    ("ArialUnicode", "C:/Windows/Fonts/arialuni.ttf"), # Good fallback
+    ("Arial", "C:/Windows/Fonts/arial.ttf")            # Standard English
+]
+LOCAL_HINDI_FONT = os.path.join(os.path.dirname(__file__), "NotoSansDevanagari-Regular.ttf")
 
 class QuizPDF(FPDF):
     def __init__(self):
-        super().__init__()
-        # Set smaller margins for more horizontal space
-        self.set_margins(10, 10, 10)  # left, top, right
-        self.set_auto_page_break(True, 15)
+        super().__init__(orientation='L')
+        self.set_margins(8, 8, 8)
+        self.set_auto_page_break(True, 10)
         
-        # Register the Unicode font for Hindi (Devanagari)
-        if os.path.exists(FONT_PATH):
-            self.add_font("NotoSans", "", FONT_PATH)
-        else:
-            print(f"Warning: Font not found at {FONT_PATH}. Hindi text may not render correctly.")
-            
+        self.main_font = None
+        self.hindi_font = None
+        
+        # 1. Try to load a Universal System Font (English + Hindi)
+        for name, path in SYSTEM_FONTS:
+            if os.path.exists(path):
+                try:
+                    self.add_font(name, "", path)
+                    self.main_font = name
+                    print(f"DEBUG: Loaded system font {name}")
+                    break
+                except Exception as e:
+                    print(f"DEBUG: Failed to load {name}: {e}")
+        
+        # 2. If no system font or assumed basic arial, try loading local NotoSans for Hindi
+        if os.path.exists(LOCAL_HINDI_FONT):
+            try:
+                self.add_font("NotoSans", "", LOCAL_HINDI_FONT)
+                self.hindi_font = "NotoSans"
+            except:
+                pass
+
+        # Fallback: If no main font found, rely on core fonts (Helvetica) which creates the crash risk
+        if not self.main_font:
+            self.main_font = 'helvetica'
+
     def header(self):
-        self.set_font('NotoSans' if os.path.exists(FONT_PATH) else 'Arial', '', 14)
-        self.cell(0, 8, 'Teaching Pariksha: AI Generated Quiz', 0, 1, 'C')
-        self.ln(3)
+        # Use main font (presumably supports English)
+        self.set_font(self.main_font, 'B', 16)
+        self.cell(0, 10, 'Teaching Pariksha: AI Generated Quiz', align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.ln(5)
 
     def footer(self):
-        self.set_y(-12)
-        self.set_font('NotoSans' if os.path.exists(FONT_PATH) else 'Arial', '', 7)
-        self.cell(0, 8, f'Page {self.page_no()}', 0, 0, 'C')
+        self.set_y(-15)
+        self.set_font(self.main_font, 'I', 10)
+        self.cell(0, 10, f'Page {self.page_no()}', align='C')
 
-def create_quiz_pdf(quiz_data):
+def safe_text(text, max_len=300):
+    if not text: return ""
+    clean = str(text).replace('\n', ' ').replace('\r', ' ')
+    return clean[:max_len] + "..." if len(clean) > max_len else clean
+
+def clean_latin(text):
+    """Remove non-latin characters to prevent Helvetica crashes"""
+    return "".join([c for c in text if ord(c) < 256])
+
+def create_quiz_pdf(quiz_data, include_hindi=True):
     pdf = QuizPDF()
     pdf.add_page()
     
-    font_name = 'NotoSans' if os.path.exists(FONT_PATH) else 'Arial'
+    # Strategy:
+    # A) If we have Nirmala/ArialUnicode -> Use it for EVERYTHING.
+    # B) If we only have Arial/Helvetica -> Use it for English, NotoSans for Hindi.
+    
+    universal_mode = (pdf.main_font in ["Nirmala", "ArialUnicode"])
+    english_font = pdf.main_font
+    hindi_font = pdf.hindi_font if pdf.hindi_font else pdf.main_font
+    
+    use_hindi_content = include_hindi and (universal_mode or pdf.hindi_font)
 
     # Questions Section
     for i, q in enumerate(quiz_data, 1):
-        # English Question
-        pdf.set_font(font_name, '', 10)
-        pdf.multi_cell(0, 6, f"Q{i}: {q['question_en']}")
-        
-        # Hindi Question
-        pdf.set_font(font_name, '', 9)
-        pdf.multi_cell(0, 5, f"({q['question_hi']})")
-        pdf.ln(1)
-        
-        # Bilingual Options - format: "English (Hindi)"
-        pdf.set_font(font_name, '', 9)
-        # Handle both old format (options) and new format (options_en/options_hi)
-        if 'options_en' in q and 'options_hi' in q:
-            opts_en = q['options_en']
-            opts_hi = q['options_hi']
-            pdf.multi_cell(0, 5, f"A) {opts_en.get('A', '')} ({opts_hi.get('A', '')})")
-            pdf.multi_cell(0, 5, f"B) {opts_en.get('B', '')} ({opts_hi.get('B', '')})")
-            pdf.multi_cell(0, 5, f"C) {opts_en.get('C', '')} ({opts_hi.get('C', '')})")
-            pdf.multi_cell(0, 5, f"D) {opts_en.get('D', '')} ({opts_hi.get('D', '')})")
-        else:
-            # Fallback for old format
-            options = q.get('options', {})
-            pdf.multi_cell(0, 5, f"A) {options.get('A', '')}")
-            pdf.multi_cell(0, 5, f"B) {options.get('B', '')}")
-            pdf.multi_cell(0, 5, f"C) {options.get('C', '')}")
-            pdf.multi_cell(0, 5, f"D) {options.get('D', '')}")
-        pdf.ln(3)
+        try:
+            # 1. Question (English Field)
+            # If universal, print raw. If split mode, sanitize English to remove stray Hindi chars.
+            q_en_raw = f"Q{i}: {q.get('question_en', 'Question not available')}"
+            
+            if universal_mode:
+                pdf.set_font(english_font, '', 12)
+                pdf.multi_cell(0, 6, safe_text(q_en_raw), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            else:
+                # Split mode: Sanitize English to prevent crash
+                pdf.set_font(english_font, '', 12)
+                pdf.multi_cell(0, 6, safe_text(clean_latin(q_en_raw)), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            
+            # 2. Hindi Question
+            if use_hindi_content and 'question_hi' in q and q['question_hi'].strip():
+                font_to_use = english_font if universal_mode else hindi_font
+                pdf.set_font(font_to_use, '', 11)
+                pdf.multi_cell(0, 6, safe_text(f"({q['question_hi']})"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            
+            pdf.ln(3)
+            
+            # 3. Arguments
+            if 'options_en' in q:
+                opts_en = q['options_en']
+                opts_hi = q.get('options_hi', {})
+            else:
+                opts_en = q.get('options', {})
+                opts_hi = {}
 
-    # Answer Key Section
+            for letter in ['A', 'B', 'C', 'D']:
+                en_text = opts_en.get(letter, '')
+                hi_text = opts_hi.get(letter, '')
+                
+                # Option English
+                if universal_mode:
+                    pdf.set_font(english_font, '', 11)
+                    pdf.multi_cell(0, 6, f"{letter}) {safe_text(en_text)}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                else:
+                    pdf.set_font(english_font, '', 11)
+                    pdf.multi_cell(0, 6, f"{letter}) {safe_text(clean_latin(en_text))}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+                # Option Hindi
+                if use_hindi_content and hi_text:
+                    font_to_use = english_font if universal_mode else hindi_font
+                    pdf.set_font(font_to_use, '', 10)
+                    pdf.set_x(pdf.get_x() + 5)
+                    pdf.multi_cell(0, 6, safe_text(hi_text), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            
+            pdf.ln(4)
+            
+        except Exception as e:
+            print(f"Error rendering Q{i}: {e}")
+            # Emergency Fallback
+            pdf.set_font('helvetica', '', 10)
+            pdf.cell(0, 5, f"Q{i}: [Error]", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    # Answer Key
     pdf.add_page()
-    pdf.set_font(font_name, '', 12)
-    pdf.cell(0, 8, "Answer Key & Explanations", 0, 1, 'C')
-    pdf.ln(3)
+    pdf.set_font(english_font, 'B', 14)
+    pdf.cell(0, 10, "Answer Key", align='C', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(5)
 
     for i, q in enumerate(quiz_data, 1):
-        pdf.set_font(font_name, '', 9)
-        pdf.cell(0, 5, f"Q{i}: {q['correct_option']}", 0, 1)
+        pdf.set_font(english_font, 'B', 11)
+        pdf.cell(0, 6, f"Q{i}: {q.get('correct_option', '?')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        # Bilingual explanations
-        pdf.set_font(font_name, '', 8)
-        if 'explanation_en' in q and 'explanation_hi' in q:
-            pdf.multi_cell(0, 4, f"EN: {q['explanation_en']}")
-            pdf.multi_cell(0, 4, f"HI: {q['explanation_hi']}")
-        else:
-            pdf.multi_cell(0, 4, f"Exp: {q.get('explanation', '')}")
-        pdf.ln(2)
+        # English Explanation
+        exp_en = q.get('explanation_en', q.get('explanation', ''))
+        if exp_en:
+            pdf.set_font(english_font, '', 10)
+            if universal_mode:
+                 pdf.multi_cell(0, 5, safe_text(f"EN: {exp_en}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            else:
+                 pdf.multi_cell(0, 5, safe_text(clean_latin(f"EN: {exp_en}")), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+        # Hindi Explanation
+        exp_hi = q.get('explanation_hi', '')
+        if use_hindi_content and exp_hi:
+            font_to_use = english_font if universal_mode else hindi_font
+            pdf.set_font(font_to_use, '', 10)
+            
+            # Universal mode handles English prefix fine. Split mode logic:
+            prefix = "HI: " if universal_mode else ""
+            pdf.multi_cell(0, 5, safe_text(f"{prefix}{exp_hi}"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-    return pdf.output()
+        pdf.ln(3)
+
+    return bytes(pdf.output())
 
 
 # --- SIDEBAR SETTINGS ---
@@ -223,12 +308,18 @@ if 'quiz_data' not in st.session_state:
     st.session_state.quiz_data = None
 if 'quiz_generated' not in st.session_state:
     st.session_state.quiz_generated = False
+if 'model_used' not in st.session_state:
+    st.session_state.model_used = ""
 
 # Generate Button
 if st.button("Generate Quiz 🚀"):
     if not video_url:
         st.warning("Please paste a YouTube URL.")
     else:
+        # CLEAR OLD QUIZ DATA FIRST
+        st.session_state.quiz_data = None
+        st.session_state.quiz_generated = False
+        
         with st.spinner(f"🎧 Generating {num_questions} {difficulty} questions..."):
             # 1. Get Text
             transcript_text = get_transcript(video_url)
@@ -276,17 +367,29 @@ if st.button("Generate Quiz 🚀"):
 if st.session_state.quiz_generated and st.session_state.quiz_data:
     st.success(f"✅ Quiz Generated Successfully using {st.session_state.get('model_used', 'Gemini')}!")
     
-    # PDF DOWNLOAD BUTTON
+    # PDF DOWNLOAD BUTTON - WITH FALLBACK
+    pdf_bytes = None
     try:
-        pdf_bytes = create_quiz_pdf(st.session_state.quiz_data)
+        # Try generating standard bilingual PDF
+        pdf_bytes = create_quiz_pdf(st.session_state.quiz_data, include_hindi=True)
+        pdf_label = "📄 Download Quiz PDF (Hindi + English)"
+    except Exception as e:
+        print(f"Bilingual PDF generation failed: {e}")
+        try:
+            # Fallback to English only
+            pdf_bytes = create_quiz_pdf(st.session_state.quiz_data, include_hindi=False)
+            st.warning("⚠️ Could not render Hindi PDF due to layout issues. Download English-only PDF instead.")
+            pdf_label = "📄 Download Quiz PDF (English Only)"
+        except Exception as e2:
+             st.error(f"Failed to generate PDF: {e2}")
+
+    if pdf_bytes:
         st.download_button(
-            label="📄 Download Quiz PDF",
+            label=pdf_label,
             data=pdf_bytes,
             file_name="teaching_pariksha_quiz.pdf",
             mime="application/pdf"
         )
-    except Exception as e:
-        st.warning(f"Could not generate PDF (likely encoding issue): {e}")
 
     # Iterate through stored questions
     for i, q in enumerate(st.session_state.quiz_data, 1):
