@@ -29,14 +29,12 @@ from gemini_api_manager import GeminiAPIManager
 api_manager = GeminiAPIManager()
 
 # --- Font Configuration ---
-# Windows System Fonts (for local dev)
 SYSTEM_FONTS = [
     ("Nirmala", "C:/Windows/Fonts/Nirmala.ttf"),
     ("ArialUnicode", "C:/Windows/Fonts/arialuni.ttf"),
     ("Arial", "C:/Windows/Fonts/arial.ttf")
 ]
-# Local font for cross-platform support (Linux/Render)
-LOCAL_HINDI_FONT = os.path.join(PROJECT_ROOT, "NotoSansDevanagari-Regular.ttf")
+LOCAL_HINDI_FONT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "NotoSansDevanagari-Regular.ttf")
 
 
 class QuizPDF(FPDF):
@@ -48,7 +46,6 @@ class QuizPDF(FPDF):
         self.main_font = None
         self.hindi_font = None
         
-        # 1. Try Windows System Fonts first (for local performance)
         for name, path in SYSTEM_FONTS:
             if os.path.exists(path):
                 try:
@@ -58,21 +55,15 @@ class QuizPDF(FPDF):
                 except:
                     pass
         
-        # 2. Load NotoSans (Essential for Linux/Render & Hindi support)
         if os.path.exists(LOCAL_HINDI_FONT):
             try:
                 self.add_font("NotoSans", "", LOCAL_HINDI_FONT)
                 self.hindi_font = "NotoSans"
-                
-                # If no main font found (e.g. on Linux), use NotoSans as main
-                if not self.main_font:
-                    self.main_font = "NotoSans"
-            except Exception as e:
-                print(f"Error loading local font: {e}")
-        
-        # 3. Fallback if absolutely no fonts found
+            except:
+                pass
+
         if not self.main_font:
-            self.main_font = "helvetica"  # Built-in FPDF font (no Hindi support)
+            self.main_font = 'helvetica'
 
     def header(self):
         self.set_font(self.main_font, 'B', 16)
