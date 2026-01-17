@@ -6,6 +6,7 @@ A multi-source quiz generator powered by Google Gemini AI.
 
 import streamlit as st
 import os
+import time
 from PIL import Image
 
 st.set_page_config(
@@ -14,6 +15,12 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# Initial page loader
+if 'home_loaded' not in st.session_state:
+    with st.spinner("Loading Teaching Pariksha..."):
+        time.sleep(0.8)
+    st.session_state.home_loaded = True
 
 # Load custom CSS for mobile responsiveness
 css_path = os.path.join(os.path.dirname(__file__), ".streamlit", "style.css")

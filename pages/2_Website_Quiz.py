@@ -5,6 +5,7 @@ Generate quizzes from website content. Supports up to 5 URLs at once.
 """
 
 import streamlit as st
+import time
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -16,6 +17,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.quiz_utils import generate_questions, create_quiz_pdf, display_quiz
 
 st.set_page_config(page_title="Website Quiz - Teaching Pariksha", page_icon="", layout="wide")
+
+# Initial page loader
+if 'web_loaded' not in st.session_state:
+    with st.spinner("Loading Website Quiz..."):
+        time.sleep(0.5)
+    st.session_state.web_loaded = True
 
 # Load custom CSS for mobile responsiveness
 css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".streamlit", "style.css")

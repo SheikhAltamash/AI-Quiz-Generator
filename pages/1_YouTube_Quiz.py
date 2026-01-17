@@ -5,6 +5,7 @@ Generate quizzes from YouTube video transcripts.
 """
 
 import streamlit as st
+import time
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
 import json
@@ -16,6 +17,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.quiz_utils import generate_questions, create_quiz_pdf, display_quiz
 
 st.set_page_config(page_title="YouTube Quiz - Teaching Pariksha", page_icon="", layout="wide")
+
+# Initial page loader
+if 'yt_loaded' not in st.session_state:
+    with st.spinner("Loading YouTube Quiz..."):
+        time.sleep(0.5)
+    st.session_state.yt_loaded = True
 
 # Load custom CSS for mobile responsiveness
 css_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".streamlit", "style.css")
