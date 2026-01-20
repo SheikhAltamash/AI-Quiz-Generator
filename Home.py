@@ -1,7 +1,7 @@
 """
 Teaching Pariksha - AI Quiz Generator
 
-A multi-source quiz generator powered by Google Gemini AI.
+A multi-source quiz generator powered by Groq Llama 3 AI.
 """
 
 import streamlit as st
@@ -33,7 +33,7 @@ with col_title:
 
 st.markdown("---")
 
-st.markdown("Generate **bilingual MCQ/MSQ quizzes** from various content sources using Google Gemini AI.")
+st.markdown("Generate **bilingual MCQ/MSQ quizzes** from various content sources using **Groq Ultra-Fast AI (Llama 3)**.")
 
 st.markdown("---")
 
@@ -66,5 +66,5 @@ st.markdown("""
 
 ---
 
-*Powered by Google Gemini AI | Built with Streamlit*
+*Powered by Groq Ultra-Fast AI | Built with Streamlit*
 """)

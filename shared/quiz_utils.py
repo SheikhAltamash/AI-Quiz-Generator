@@ -23,10 +23,16 @@ load_dotenv(os.path.join(PROJECT_ROOT, '.env'))
 # Import the API manager
 import sys
 sys.path.insert(0, PROJECT_ROOT)
-from gemini_api_manager import GeminiAPIManager
+# from gemini_api_manager import GeminiAPIManager
+from groq_api_manager import GroqAPIManager
 
-# Initialize API manager
-api_manager = GeminiAPIManager()
+# Initialize API manager (Groq)
+api_manager = GroqAPIManager()
+
+# --- Logging Configuration ---
+# Suppress noisy library logs to keep terminal clean
+import logging
+logging.getLogger("fontTools").setLevel(logging.WARNING)
 
 # --- Font Configuration ---
 SYSTEM_FONTS = [

@@ -6,3 +6,4 @@ fpdf2
 beautifulsoup4
 requests
 Pillow
+groq
